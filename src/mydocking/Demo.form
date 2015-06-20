@@ -99,9 +99,7 @@
       <Properties>
         <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
           <Border info="org.netbeans.modules.form.compat2.border.LineBorderInfo">
-            <LineBorder thickness="2">
-              <Color PropertyName="color" blue="66" green="66" red="ff" type="rgb"/>
-            </LineBorder>
+            <LineBorder thickness="2"/>
           </Border>
         </Property>
       </Properties>

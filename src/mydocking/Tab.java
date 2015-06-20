@@ -2,9 +2,19 @@ package mydocking;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Image;
 import java.awt.Rectangle;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DragGestureEvent;
+import java.awt.dnd.DragGestureListener;
+import java.awt.dnd.DragSource;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -14,6 +24,7 @@ import javax.swing.JPanel;
 
 public class Tab extends JPanel {
 
+   public static final DataFlavor DATA_FLAVOR = new DataFlavor(Tab.class, null);
    private final String id;
    private final JLabel title;
    private final JButton closeButton;
@@ -81,6 +92,35 @@ public class Tab extends JPanel {
       });
 
       setInactive();
+
+      final DragSource source = new DragSource();
+      source.createDefaultDragGestureRecognizer(this, DnDConstants.ACTION_MOVE, new DragGestureListener() {
+         @Override
+         public void dragGestureRecognized(DragGestureEvent dge) {
+            Image img = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+            paint(img.getGraphics());
+            source.startDrag(dge, Cursor.getDefaultCursor(), img, dge.getDragOrigin(), new Transferable() {
+               @Override
+               public DataFlavor[] getTransferDataFlavors() {
+                  return new DataFlavor[]{DATA_FLAVOR};
+               }
+
+               @Override
+               public boolean isDataFlavorSupported(DataFlavor flavor) {
+                  return DATA_FLAVOR.equals(flavor);
+               }
+
+               @Override
+               public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
+                  if (isDataFlavorSupported(flavor)) {
+                     return Tab.this.id;
+                  } else {
+                     throw new UnsupportedFlavorException(flavor);
+                  }
+               }
+            }, null);
+         }
+      });
    }
 
    public void setActive() {

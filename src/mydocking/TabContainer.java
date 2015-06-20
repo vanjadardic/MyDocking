@@ -1,16 +1,32 @@
 package mydocking;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetDragEvent;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.dnd.DropTargetEvent;
+import java.awt.dnd.DropTargetListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
 import javax.swing.BoxLayout;
@@ -34,6 +50,7 @@ public class TabContainer extends JPanel {
    private final JButton buttonDown;
    private final JPanel separator;
    private final JPanel tabArea;
+   private Point dropPoint = null;
 
    public TabContainer() {
       setLayout(new BorderLayout());
@@ -140,6 +157,50 @@ public class TabContainer extends JPanel {
       tabArea = new JPanel();
       tabArea.setLayout(new java.awt.CardLayout());
       add(tabArea, BorderLayout.CENTER);
+
+      DropTarget dropTarget = new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetListener() {
+         @Override
+         public void dragEnter(DropTargetDragEvent dtde) {
+            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
+               dtde.rejectDrag();
+               return;
+            }
+            TabContainer.this.setDropPoint(dtde.getLocation());
+         }
+
+         @Override
+         public void dragOver(DropTargetDragEvent dtde) {
+            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
+               TabContainer.this.setDropPoint(null);
+            } else {
+               TabContainer.this.setDropPoint(dtde.getLocation());
+            }
+         }
+
+         @Override
+         public void dropActionChanged(DropTargetDragEvent dtde) {
+            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
+               dtde.rejectDrag();
+            }
+
+         }
+
+         @Override
+         public void dragExit(DropTargetEvent dte) {
+            TabContainer.this.setDropPoint(null);
+
+         }
+
+         @Override
+         public void drop(DropTargetDropEvent dtde) {
+            try {
+               System.out.println(dtde.getTransferable().getTransferData(Tab.DATA_FLAVOR));
+            } catch (UnsupportedFlavorException | IOException ex) {
+               Logger.getLogger(Demo.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            TabContainer.this.setDropPoint(null);
+         }
+      }, true, null);
    }
 
    public void setActiveTab(Tab tab) {
@@ -249,6 +310,43 @@ public class TabContainer extends JPanel {
       for (int i = 0; i < listeners.length; i = i + 2) {
          if (listeners[i] == TabClosedListener.class) {
             ((TabClosedListener) listeners[i + 1]).tabClosed(tab);
+         }
+      }
+   }
+
+   public Point getDropPoint() {
+      return dropPoint;
+   }
+
+   public void setDropPoint(Point dropPoint) {
+      if (dropPoint == null || !dropPoint.equals(getDropPoint())) {
+         this.dropPoint = dropPoint;
+         repaint();
+      }
+   }
+
+   @Override
+   public void paint(Graphics g) {
+      super.paint(g);
+      if (dropPoint != null) {
+         Graphics2D g2 = (Graphics2D) g;
+         g2.setStroke(new BasicStroke(3));
+         g2.setColor(new Color(0xff, 0x60, 0x00, 0xa0));
+
+         Dimension size = getSize();
+         Insets insets = getInsets();
+         insets.left += 1;
+         insets.top += 1;
+         insets.right += 2;
+         insets.bottom += 2;
+         if (dropPoint.y <= size.height * 0.2f) {
+            g2.drawRect(insets.left, insets.top, size.width - insets.left - insets.right, size.height / 2 - insets.top);
+         } else if (dropPoint.y >= size.height * 0.8f) {
+            g2.drawRect(insets.left, size.height / 2, size.width - insets.left - insets.right, size.height - size.height / 2 - insets.bottom);
+         } else if (dropPoint.x <= size.width * 0.2f) {
+            g2.drawRect(insets.left, insets.top, size.width / 2 - insets.left, size.height - insets.top - insets.bottom);
+         } else if (dropPoint.x >= size.width * 0.8f) {
+            g2.drawRect(size.width / 2, insets.top, size.width - size.width / 2 - insets.right, size.height - insets.top - insets.bottom);
          }
       }
    }
