@@ -1,32 +1,19 @@
 package mydocking;
 
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Insets;
-import java.awt.Point;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.awt.dnd.DnDConstants;
-import java.awt.dnd.DropTarget;
-import java.awt.dnd.DropTargetDragEvent;
-import java.awt.dnd.DropTargetDropEvent;
-import java.awt.dnd.DropTargetEvent;
-import java.awt.dnd.DropTargetListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
 import javax.swing.BoxLayout;
@@ -48,13 +35,12 @@ public class TabContainer extends JPanel {
    private final JButton buttonLeft;
    private final JButton buttonRight;
    private final JButton buttonDown;
-   private final JPanel separator;
    private final JPanel tabArea;
-   private Point dropPoint = null;
+   private static final Map<String, Tab> allTabs = new HashMap<>();
 
    public TabContainer() {
       setLayout(new BorderLayout());
-      setMinimumSize(new Dimension(0, 0));
+      setMinimumSize(new Dimension(10, 0));
 
       tabBar = new JPanel();
       tabBar.setLayout(new BorderLayout());
@@ -90,7 +76,7 @@ public class TabContainer extends JPanel {
       buttonLeft = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/left.png")));
       buttonLeft.setFocusPainted(false);
       buttonLeft.setFocusable(false);
-      buttonLeft.setMargin(new java.awt.Insets(0, 0, 0, 0));
+      buttonLeft.setMargin(new Insets(0, 0, 0, 0));
       new ClickScrollHandler(buttonLeft, 400, 4, 150, 4, 50) {
          @Override
          public void handle() {
@@ -103,7 +89,7 @@ public class TabContainer extends JPanel {
       buttonRight = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/right.png")));
       buttonRight.setFocusPainted(false);
       buttonRight.setFocusable(false);
-      buttonRight.setMargin(new java.awt.Insets(0, 0, 0, 0));
+      buttonRight.setMargin(new Insets(0, 0, 0, 0));
       new ClickScrollHandler(buttonRight, 400, 4, 150, 4, 50) {
          @Override
          public void handle() {
@@ -116,7 +102,7 @@ public class TabContainer extends JPanel {
       buttonDown = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/down.png")));
       buttonDown.setFocusPainted(false);
       buttonDown.setFocusable(false);
-      buttonDown.setMargin(new java.awt.Insets(0, 0, 0, 0));
+      buttonDown.setMargin(new Insets(0, 0, 0, 0));
       buttonDown.addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent e) {
@@ -148,59 +134,12 @@ public class TabContainer extends JPanel {
 
       tabBar.add(controls, BorderLayout.EAST);
 
-      separator = new JPanel();
-      separator.setPreferredSize(new Dimension(0, 2));
-      tabBar.add(separator, BorderLayout.SOUTH);
-
       add(tabBar, BorderLayout.NORTH);
 
       tabArea = new JPanel();
-      tabArea.setLayout(new java.awt.CardLayout());
+      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground())); //TODO show only inner borders
+      tabArea.setLayout(new CardLayout());
       add(tabArea, BorderLayout.CENTER);
-
-      DropTarget dropTarget = new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetListener() {
-         @Override
-         public void dragEnter(DropTargetDragEvent dtde) {
-            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
-               dtde.rejectDrag();
-               return;
-            }
-            TabContainer.this.setDropPoint(dtde.getLocation());
-         }
-
-         @Override
-         public void dragOver(DropTargetDragEvent dtde) {
-            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
-               TabContainer.this.setDropPoint(null);
-            } else {
-               TabContainer.this.setDropPoint(dtde.getLocation());
-            }
-         }
-
-         @Override
-         public void dropActionChanged(DropTargetDragEvent dtde) {
-            if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
-               dtde.rejectDrag();
-            }
-
-         }
-
-         @Override
-         public void dragExit(DropTargetEvent dte) {
-            TabContainer.this.setDropPoint(null);
-
-         }
-
-         @Override
-         public void drop(DropTargetDropEvent dtde) {
-            try {
-               System.out.println(dtde.getTransferable().getTransferData(Tab.DATA_FLAVOR));
-            } catch (UnsupportedFlavorException | IOException ex) {
-               Logger.getLogger(Demo.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            TabContainer.this.setDropPoint(null);
-         }
-      }, true, null);
    }
 
    public void setActiveTab(Tab tab) {
@@ -212,9 +151,17 @@ public class TabContainer extends JPanel {
 
       CardLayout cl = (CardLayout) (tabArea.getLayout());
       cl.show(tabArea, tab.getId());
-      separator.setBackground(tab.getBackgroundActive());
+      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, tab.getBackgroundActive()));
 
       tabs.scrollRectToVisible(tab.getBounds());
+   }
+
+   public void addTab(Tab tab) {
+      tabs.add(tab);
+      tabArea.add(tab.getComponent(), tab.getId());
+      validate();
+      tabsResized();
+      setActiveTab(tab);
    }
 
    public Tab addNewTab(String title, Component component) {
@@ -225,28 +172,30 @@ public class TabContainer extends JPanel {
          @Override
          public void mousePressed(MouseEvent evt) {
             if (evt.getButton() == MouseEvent.BUTTON1) {
-               setActiveTab(newTab);
+               newTab.getTabContainer().setActiveTab(newTab);
             } else if (evt.getButton() == MouseEvent.BUTTON2) {
-               fireTabClosing(newTab);
+               newTab.getTabContainer().fireTabClosing(newTab);
             }
          }
       });
       newTab.getCloseButton().addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent evt) {
-            fireTabClosing(newTab);
+            newTab.getTabContainer().fireTabClosing(newTab);
          }
       });
-      tabs.add(newTab);
-      tabArea.add(component, id);
-      validate();
-      tabsResized();
-      setActiveTab(newTab);
+      addTab(newTab);
 
+      allTabs.put(newTab.getId(), newTab);
       return newTab;
    }
 
    public void closeTab(Tab tab) {
+      removeTab(tab);
+      fireTabClosed(tab);
+   }
+
+   public void removeTab(Tab tab) {
       if (tab == activeTab && tabs.getComponentCount() > 1) {
          int nextIndex = tabs.getComponentZOrder(tab) + 1;
          if (nextIndex == tabs.getComponentCount()) {
@@ -254,19 +203,14 @@ public class TabContainer extends JPanel {
          }
          setActiveTab((Tab) tabs.getComponent(nextIndex));
       }
-      removeTab(tab);
-      fireTabClosed(tab);
-   }
-
-   public void removeTab(Tab tab) {
       tabs.remove(tab);
+      tabArea.remove(tab.getComponent());
       tabBar.validate();
       tabBar.repaint();
-      if (tabs.getComponentCount() == 0) {
-         separator.setBackground(getBackground());
-      }
       tabsResized();
-      tabArea.remove(tab.getComponent());
+      if (tabs.getComponentCount() == 0) {
+         tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
+      }
    }
 
    private void tabsResized() {
@@ -314,40 +258,7 @@ public class TabContainer extends JPanel {
       }
    }
 
-   public Point getDropPoint() {
-      return dropPoint;
-   }
-
-   public void setDropPoint(Point dropPoint) {
-      if (dropPoint == null || !dropPoint.equals(getDropPoint())) {
-         this.dropPoint = dropPoint;
-         repaint();
-      }
-   }
-
-   @Override
-   public void paint(Graphics g) {
-      super.paint(g);
-      if (dropPoint != null) {
-         Graphics2D g2 = (Graphics2D) g;
-         g2.setStroke(new BasicStroke(3));
-         g2.setColor(new Color(0xff, 0x60, 0x00, 0xa0));
-
-         Dimension size = getSize();
-         Insets insets = getInsets();
-         insets.left += 1;
-         insets.top += 1;
-         insets.right += 2;
-         insets.bottom += 2;
-         if (dropPoint.y <= size.height * 0.2f) {
-            g2.drawRect(insets.left, insets.top, size.width - insets.left - insets.right, size.height / 2 - insets.top);
-         } else if (dropPoint.y >= size.height * 0.8f) {
-            g2.drawRect(insets.left, size.height / 2, size.width - insets.left - insets.right, size.height - size.height / 2 - insets.bottom);
-         } else if (dropPoint.x <= size.width * 0.2f) {
-            g2.drawRect(insets.left, insets.top, size.width / 2 - insets.left, size.height - insets.top - insets.bottom);
-         } else if (dropPoint.x >= size.width * 0.8f) {
-            g2.drawRect(size.width / 2, insets.top, size.width - size.width / 2 - insets.right, size.height - insets.top - insets.bottom);
-         }
-      }
+   public static Tab getTab(String id) {
+      return allTabs.get(id);
    }
 }
