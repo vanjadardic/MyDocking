@@ -83,53 +83,61 @@ public class TabManager extends JPanel {
          public void drop(DropTargetDropEvent dtde) {
             try {
                Tab tab = TabContainer.getTab((String) dtde.getTransferable().getTransferData(Tab.DATA_FLAVOR));
-               //System.out.println(tab);
                TabContainer tcSrc = tab.getTabContainer();
                if (tcSrc == null) {
                   return;
                }
-               TabContainer tcDest = getTabContainer(dtde.getLocation());
-               if (tcDest == null) {
+               DropLocation dropLocation = getDropLocation(dtde.getLocation());
+               if (dropLocation.tabContainer == null || dropLocation.location == null) {
                   return;
                }
-               Dimension size = tcSrc.getSize();
-               Point dropPointTmp = SwingUtilities.convertPoint(TabManager.this, dropPoint, tcSrc);
-               if (dropPointTmp.y <= size.height * 0.2f) {
-                  System.out.println("top");
-               } else if (dropPointTmp.y >= size.height * 0.8f) {
-                  System.out.println("bottom");
-               } else if (dropPointTmp.x <= size.width * 0.2f) {
-                  System.out.println("left");
-                  int width = tcDest.getWidth();
-                  tcSrc.removeTab(tab);
-                  Container container = tcDest.getParent();
-                  container.remove(tcDest);
 
-                  TabContainer newTc = new TabContainer();
-                  newTc.addTab(tab);
+               setDropPoint(null);
+               tcSrc.removeTab(tab);
+               TabContainer tcNew = new TabContainer();
+               tcNew.addTab(tab);
 
-                  //TODO handle slight resize
-                  //TODO haddle removing last tab
+               int whichSplit = ("left".equals(dropLocation.location) || "right".equals(dropLocation.location))
+                     ? JSplitPane.HORIZONTAL_SPLIT
+                     : JSplitPane.VERTICAL_SPLIT;
+               JSplitPane split = new JSplitPane(whichSplit, true);
+               split.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+               split.setDividerSize(4);
+               split.setResizeWeight(0.5);
+               split.setUI(new BasicSplitPaneUI() {
+                  @Override
+                  public BasicSplitPaneDivider createDefaultDivider() {
+                     return new BasicSplitPaneDivider(this) {
+                        @Override
+                        public void setBorder(Border b) {
+                        }
+                     };
+                  }
+               });
 
-                  JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true, newTc, tcDest);
-                  split.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-                  split.setDividerSize(4);
-                  split.setResizeWeight(0.5);
-                  split.setDividerLocation(width / 2 - 2);
-                  split.setUI(new BasicSplitPaneUI() {
-                     @Override
-                     public BasicSplitPaneDivider createDefaultDivider() {
-                        return new BasicSplitPaneDivider(this) {
-                           @Override
-                           public void setBorder(Border b) {
-                           }
-                        };
-                     }
-                  });
-                  container.add(split);
-               } else if (dropPointTmp.x >= size.width * 0.8f) {
-                  System.out.println("right");
+               int dividerLocation = (whichSplit == JSplitPane.HORIZONTAL_SPLIT ? dropLocation.tabContainer.getWidth() : dropLocation.tabContainer.getHeight()) / 2 - 2;
+               Container parent = dropLocation.tabContainer.getParent();
+               if (parent instanceof JSplitPane) {
+                  JSplitPane splitParent = (JSplitPane) parent;
+                  int dividerLocation2 = splitParent.getDividerLocation();
+                  splitParent.add(split, (splitParent.getLeftComponent() == dropLocation.tabContainer)
+                        ? JSplitPane.LEFT
+                        : JSplitPane.RIGHT);
+                  splitParent.setDividerLocation(dividerLocation2);
+               } else {
+                  parent.remove(dropLocation.tabContainer);
+                  parent.add(split);
+                  parent.validate();
                }
+               if ("left".equals(dropLocation.location) || "top".equals(dropLocation.location)) {
+                  split.setLeftComponent(tcNew);
+                  split.setRightComponent(dropLocation.tabContainer);
+               }
+               if ("right".equals(dropLocation.location) || "bottom".equals(dropLocation.location)) {
+                  split.setLeftComponent(dropLocation.tabContainer);
+                  split.setRightComponent(tcNew);
+               }
+               split.setDividerLocation(dividerLocation);
             } catch (UnsupportedFlavorException | IOException ex) {
                throw new RuntimeException(ex);
             }
@@ -164,27 +172,29 @@ public class TabManager extends JPanel {
          g2.setStroke(new BasicStroke(3));
          g2.setColor(new Color(0xff, 0x60, 0x00, 0xa0));
 
-         TabContainer tc = getTabContainer(dropPoint);
-         //System.out.println(c);
-
-         if (tc != null) {
-            Dimension size = tc.getSize();
-            Insets insets = tc.getInsets();
+         DropLocation dropLocation = getDropLocation(dropPoint);
+         if (dropLocation.tabContainer != null && dropLocation.location != null) {
+            Dimension size = dropLocation.tabContainer.getSize();
+            Insets insets = dropLocation.tabContainer.getInsets();
             insets.left += 1;
             insets.top += 1;
             insets.right += 2;
             insets.bottom += 2;
-            Point offset = SwingUtilities.convertPoint(tc, new Point(0, 0), this);
-            Point dropPointTmp = SwingUtilities.convertPoint(this, dropPoint, tc);
+            Point offset = SwingUtilities.convertPoint(dropLocation.tabContainer, new Point(0, 0), this);
             g2.translate(offset.x, offset.y);
-            if (dropPointTmp.y <= size.height * 0.2f) {
-               g2.drawRect(insets.left, insets.top, size.width - insets.left - insets.right, size.height / 2 - insets.top);
-            } else if (dropPointTmp.y >= size.height * 0.8f) {
-               g2.drawRect(insets.left, size.height / 2, size.width - insets.left - insets.right, size.height - size.height / 2 - insets.bottom);
-            } else if (dropPointTmp.x <= size.width * 0.2f) {
-               g2.drawRect(insets.left, insets.top, size.width / 2 - insets.left, size.height - insets.top - insets.bottom);
-            } else if (dropPointTmp.x >= size.width * 0.8f) {
-               g2.drawRect(size.width / 2, insets.top, size.width - size.width / 2 - insets.right, size.height - insets.top - insets.bottom);
+            switch (dropLocation.location) {
+               case "top":
+                  g2.drawRect(insets.left, insets.top, size.width - insets.left - insets.right, size.height / 2 - insets.top);
+                  break;
+               case "bottom":
+                  g2.drawRect(insets.left, size.height / 2, size.width - insets.left - insets.right, size.height - size.height / 2 - insets.bottom);
+                  break;
+               case "left":
+                  g2.drawRect(insets.left, insets.top, size.width / 2 - insets.left, size.height - insets.top - insets.bottom);
+                  break;
+               case "right":
+                  g2.drawRect(size.width / 2, insets.top, size.width - size.width / 2 - insets.right, size.height - insets.top - insets.bottom);
+                  break;
             }
          }
       }
@@ -203,5 +213,30 @@ public class TabManager extends JPanel {
          location = SwingUtilities.convertPoint(c, location, c2);
          c = c2;
       }
+   }
+
+   private class DropLocation {
+
+      public TabContainer tabContainer;
+      public String location;
+   }
+
+   private DropLocation getDropLocation(Point dropPoint) {
+      DropLocation dropLocation = new DropLocation();
+      dropLocation.tabContainer = getTabContainer(dropPoint);
+      if (dropLocation.tabContainer != null) {
+         Dimension size = dropLocation.tabContainer.getSize();
+         Point dropPointTmp = SwingUtilities.convertPoint(this, dropPoint, dropLocation.tabContainer);
+         if (dropPointTmp.y <= size.height * 0.2f) {
+            dropLocation.location = "top";
+         } else if (dropPointTmp.y >= size.height * 0.8f) {
+            dropLocation.location = "bottom";
+         } else if (dropPointTmp.x <= size.width * 0.2f) {
+            dropLocation.location = "left";
+         } else if (dropPointTmp.x >= size.width * 0.8f) {
+            dropLocation.location = "right";
+         }
+      }
+      return dropLocation;
    }
 }

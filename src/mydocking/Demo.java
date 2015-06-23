@@ -10,6 +10,8 @@ import javax.swing.SwingUtilities;
 
 public class Demo extends javax.swing.JFrame {
 
+   private static boolean exceptionDialogShown = false;
+
    public Demo() {
       initComponents();
    }
@@ -33,6 +35,11 @@ public class Demo extends javax.swing.JFrame {
          @Override
          public void uncaughtException(Thread t, Throwable e) {
             e.printStackTrace();
+            if (exceptionDialogShown) {
+               return;
+            }
+            exceptionDialogShown = true;
+
             StringWriter sw = new StringWriter();
             e.printStackTrace(new PrintWriter(sw));
 
@@ -53,6 +60,7 @@ public class Demo extends javax.swing.JFrame {
                   new Object[]{"Dismiss", "Close application"},
                   null
             );
+            exceptionDialogShown = false;
             if (option == 1) {
                System.exit(1);
             }

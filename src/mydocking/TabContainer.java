@@ -3,6 +3,7 @@ package mydocking;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ComponentAdapter;
@@ -22,6 +23,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.ScrollPaneConstants;
 
 public class TabContainer extends JPanel {
@@ -40,7 +42,7 @@ public class TabContainer extends JPanel {
 
    public TabContainer() {
       setLayout(new BorderLayout());
-      setMinimumSize(new Dimension(10, 0));
+      setMinimumSize(new Dimension(10, 10));
 
       tabBar = new JPanel();
       tabBar.setLayout(new BorderLayout());
@@ -209,7 +211,28 @@ public class TabContainer extends JPanel {
       tabBar.repaint();
       tabsResized();
       if (tabs.getComponentCount() == 0) {
-         tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
+         Container parent = getParent();
+         if (parent instanceof JSplitPane) {
+            JSplitPane splitParent = (JSplitPane) parent;
+            Component otherComponent = (splitParent.getLeftComponent() == this)
+                  ? splitParent.getRightComponent()
+                  : splitParent.getLeftComponent();
+            Container parentOfParent = splitParent.getParent();
+            if (parentOfParent instanceof JSplitPane) {
+               JSplitPane splitParentOfParent = (JSplitPane) parentOfParent;
+               int dividerLocation = splitParentOfParent.getDividerLocation();
+               splitParentOfParent.add(otherComponent, (splitParentOfParent.getLeftComponent() == splitParent)
+                     ? JSplitPane.LEFT
+                     : JSplitPane.RIGHT);
+               splitParentOfParent.setDividerLocation(dividerLocation);
+            } else {
+               parentOfParent.remove(splitParent);
+               parentOfParent.add(otherComponent);
+               parentOfParent.validate();
+            }
+         } else {
+            tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
+         }
       }
    }
 
