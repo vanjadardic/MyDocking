@@ -79,7 +79,7 @@ public class TabContainer extends JPanel {
       buttonLeft.setFocusPainted(false);
       buttonLeft.setFocusable(false);
       buttonLeft.setMargin(new Insets(0, 0, 0, 0));
-      new ClickScrollHandler(buttonLeft, 400, 4, 150, 4, 50) {
+      new ClickScrollHandler(buttonLeft, 400, 4, 150, 8, 50) {
          @Override
          public void handle() {
             BoundedRangeModel range = tabsScroll.getHorizontalScrollBar().getModel();
@@ -92,7 +92,7 @@ public class TabContainer extends JPanel {
       buttonRight.setFocusPainted(false);
       buttonRight.setFocusable(false);
       buttonRight.setMargin(new Insets(0, 0, 0, 0));
-      new ClickScrollHandler(buttonRight, 400, 4, 150, 4, 50) {
+      new ClickScrollHandler(buttonRight, 400, 4, 150, 8, 50) {
          @Override
          public void handle() {
             BoundedRangeModel range = tabsScroll.getHorizontalScrollBar().getModel();
@@ -159,7 +159,11 @@ public class TabContainer extends JPanel {
    }
 
    public void addTab(Tab tab) {
-      tabs.add(tab);
+      addTab(tab, tabs.getComponentCount());
+   }
+
+   public void addTab(Tab tab, int index) {
+      tabs.add(tab, index);
       tabArea.add(tab.getComponent(), tab.getId());
       validate();
       tabsResized();
@@ -234,6 +238,14 @@ public class TabContainer extends JPanel {
             tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
          }
       }
+   }
+
+   public JPanel getTabs() {
+      return tabs;
+   }
+
+   public JScrollPane getTabsScroll() {
+      return tabsScroll;
    }
 
    private void tabsResized() {
