@@ -142,6 +142,13 @@ public class TabContainer extends JPanel {
       tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground())); //TODO show only inner borders
       tabArea.setLayout(new CardLayout());
       add(tabArea, BorderLayout.CENTER);
+
+      addComponentListener(new ComponentAdapter() {
+         @Override
+         public void componentResized(ComponentEvent e) {
+            tabsResized();
+         }
+      });
    }
 
    public void setActiveTab(Tab tab) {
