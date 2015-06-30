@@ -2,9 +2,20 @@ package mydocking;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Image;
+import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DragGestureEvent;
+import java.awt.dnd.DragGestureListener;
+import java.awt.dnd.DragSource;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -14,6 +25,7 @@ import javax.swing.JPanel;
 
 public class Tab extends JPanel {
 
+   public static final DataFlavor DATA_FLAVOR = getDataFlavor();
    private final String id;
    private final JLabel title;
    private final JButton closeButton;
@@ -40,7 +52,7 @@ public class Tab extends JPanel {
 
       closeButton = new JButton();
       closeButton.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-      closeButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
+      closeButton.setMargin(new Insets(0, 0, 0, 0));
       closeButton.setIcon(new ImageIcon(getClass().getResource("/mydocking/images/close.png")));
       closeButton.setRolloverIcon(new ImageIcon(getClass().getResource("/mydocking/images/close-hover.png")));
       closeButton.setPressedIcon(new ImageIcon(getClass().getResource("/mydocking/images/close-pressed.png")));
@@ -48,13 +60,13 @@ public class Tab extends JPanel {
       closeButton.setFocusable(false);
       add(closeButton);
 
-      setBackgroundActive(new Color(0x00, 0x80, 0xd0));
-      setBackgroundHover(new Color(0xbc, 0xcd, 0xde));
-      setBackgroundInactive(new Color(0xf0, 0xf0, 0xf0));
+      setBackgroundActive(new Color(0x00, 0x7a, 0xcc));
+      setBackgroundHover(new Color(0x1c, 0x97, 0xea));
+      setBackgroundInactive(new Color(0xcc, 0xce, 0xdb));
 
       setForegroundActive(new Color(0xff, 0xff, 0xff));
       setForegroundHover(new Color(0xff, 0xff, 0xff));
-      setForegroundInactive(new Color(0x80, 0x80, 0x80));
+      setForegroundInactive(new Color(0x6d, 0x6d, 0x6d));
 
       addMouseListener(new MouseAdapter() {
          @Override
@@ -81,6 +93,43 @@ public class Tab extends JPanel {
       });
 
       setInactive();
+
+      final DragSource source = new DragSource();
+      source.createDefaultDragGestureRecognizer(this, DnDConstants.ACTION_MOVE, new DragGestureListener() {
+         @Override
+         public void dragGestureRecognized(DragGestureEvent dge) {
+            Image img = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+            paint(img.getGraphics());
+            source.startDrag(dge, Cursor.getDefaultCursor(), img, dge.getDragOrigin(), new Transferable() {
+               @Override
+               public DataFlavor[] getTransferDataFlavors() {
+                  return new DataFlavor[]{DATA_FLAVOR};
+               }
+
+               @Override
+               public boolean isDataFlavorSupported(DataFlavor flavor) {
+                  return DATA_FLAVOR.equals(flavor);
+               }
+
+               @Override
+               public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
+                  if (isDataFlavorSupported(flavor)) {
+                     return Tab.this.id;
+                  } else {
+                     throw new UnsupportedFlavorException(flavor);
+                  }
+               }
+            }, null);
+         }
+      });
+   }
+
+   private static DataFlavor getDataFlavor() {
+      try {
+         return new DataFlavor(DataFlavor.javaJVMLocalObjectMimeType + "-" + System.currentTimeMillis() + ";class=\"" + Tab.class.getName() + "\"");
+      } catch (ClassNotFoundException ex) {
+         return new DataFlavor(Tab.class, null);
+      }
    }
 
    public void setActive() {
@@ -191,5 +240,19 @@ public class Tab extends JPanel {
 
    public void setForegroundActive(Color foregroundActive) {
       this.foregroundActive = foregroundActive;
+   }
+
+   public TabContainer getTabContainer() {
+      Component c = this;
+      while (true) {
+         Component c2 = c.getParent();
+         if (c2 == null || c2 == c) {
+            return null;
+         }
+         if (c2 instanceof TabContainer) {
+            return (TabContainer) c2;
+         }
+         c = c2;
+      }
    }
 }

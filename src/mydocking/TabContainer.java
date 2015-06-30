@@ -3,13 +3,17 @@ package mydocking;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
@@ -19,6 +23,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.ScrollPaneConstants;
 
 public class TabContainer extends JPanel {
@@ -32,12 +37,12 @@ public class TabContainer extends JPanel {
    private final JButton buttonLeft;
    private final JButton buttonRight;
    private final JButton buttonDown;
-   private final JPanel separator;
    private final JPanel tabArea;
+   private static final Map<String, Tab> allTabs = new HashMap<>();
 
    public TabContainer() {
       setLayout(new BorderLayout());
-      setMinimumSize(new Dimension(0, 0));
+      setMinimumSize(new Dimension(10, 10));
 
       tabBar = new JPanel();
       tabBar.setLayout(new BorderLayout());
@@ -73,8 +78,8 @@ public class TabContainer extends JPanel {
       buttonLeft = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/left.png")));
       buttonLeft.setFocusPainted(false);
       buttonLeft.setFocusable(false);
-      buttonLeft.setMargin(new java.awt.Insets(0, 0, 0, 0));
-      new ClickScrollHandler(buttonLeft, 400, 4, 150, 4, 50) {
+      buttonLeft.setMargin(new Insets(0, 0, 0, 0));
+      new ClickScrollHandler(buttonLeft, 400, 4, 150, 8, 50) {
          @Override
          public void handle() {
             BoundedRangeModel range = tabsScroll.getHorizontalScrollBar().getModel();
@@ -86,8 +91,8 @@ public class TabContainer extends JPanel {
       buttonRight = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/right.png")));
       buttonRight.setFocusPainted(false);
       buttonRight.setFocusable(false);
-      buttonRight.setMargin(new java.awt.Insets(0, 0, 0, 0));
-      new ClickScrollHandler(buttonRight, 400, 4, 150, 4, 50) {
+      buttonRight.setMargin(new Insets(0, 0, 0, 0));
+      new ClickScrollHandler(buttonRight, 400, 4, 150, 8, 50) {
          @Override
          public void handle() {
             BoundedRangeModel range = tabsScroll.getHorizontalScrollBar().getModel();
@@ -99,7 +104,7 @@ public class TabContainer extends JPanel {
       buttonDown = new JButton(new ImageIcon(getClass().getResource("/mydocking/images/down.png")));
       buttonDown.setFocusPainted(false);
       buttonDown.setFocusable(false);
-      buttonDown.setMargin(new java.awt.Insets(0, 0, 0, 0));
+      buttonDown.setMargin(new Insets(0, 0, 0, 0));
       buttonDown.addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent e) {
@@ -131,15 +136,19 @@ public class TabContainer extends JPanel {
 
       tabBar.add(controls, BorderLayout.EAST);
 
-      separator = new JPanel();
-      separator.setPreferredSize(new Dimension(0, 2));
-      tabBar.add(separator, BorderLayout.SOUTH);
-
       add(tabBar, BorderLayout.NORTH);
 
       tabArea = new JPanel();
-      tabArea.setLayout(new java.awt.CardLayout());
+      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground())); //TODO show only inner borders
+      tabArea.setLayout(new CardLayout());
       add(tabArea, BorderLayout.CENTER);
+
+      addComponentListener(new ComponentAdapter() {
+         @Override
+         public void componentResized(ComponentEvent e) {
+            tabsResized();
+         }
+      });
    }
 
    public void setActiveTab(Tab tab) {
@@ -151,9 +160,21 @@ public class TabContainer extends JPanel {
 
       CardLayout cl = (CardLayout) (tabArea.getLayout());
       cl.show(tabArea, tab.getId());
-      separator.setBackground(tab.getBackgroundActive());
+      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, tab.getBackgroundActive()));
 
       tabs.scrollRectToVisible(tab.getBounds());
+   }
+
+   public void addTab(Tab tab) {
+      addTab(tab, tabs.getComponentCount());
+   }
+
+   public void addTab(Tab tab, int index) {
+      tabs.add(tab, index);
+      tabArea.add(tab.getComponent(), tab.getId());
+      validate();
+      tabsResized();
+      setActiveTab(tab);
    }
 
    public Tab addNewTab(String title, Component component) {
@@ -164,28 +185,30 @@ public class TabContainer extends JPanel {
          @Override
          public void mousePressed(MouseEvent evt) {
             if (evt.getButton() == MouseEvent.BUTTON1) {
-               setActiveTab(newTab);
+               newTab.getTabContainer().setActiveTab(newTab);
             } else if (evt.getButton() == MouseEvent.BUTTON2) {
-               fireTabClosing(newTab);
+               newTab.getTabContainer().fireTabClosing(newTab);
             }
          }
       });
       newTab.getCloseButton().addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent evt) {
-            fireTabClosing(newTab);
+            newTab.getTabContainer().fireTabClosing(newTab);
          }
       });
-      tabs.add(newTab);
-      tabArea.add(component, id);
-      validate();
-      tabsResized();
-      setActiveTab(newTab);
+      addTab(newTab);
 
+      allTabs.put(newTab.getId(), newTab);
       return newTab;
    }
 
    public void closeTab(Tab tab) {
+      removeTab(tab);
+      fireTabClosed(tab);
+   }
+
+   public void removeTab(Tab tab) {
       if (tab == activeTab && tabs.getComponentCount() > 1) {
          int nextIndex = tabs.getComponentZOrder(tab) + 1;
          if (nextIndex == tabs.getComponentCount()) {
@@ -193,19 +216,43 @@ public class TabContainer extends JPanel {
          }
          setActiveTab((Tab) tabs.getComponent(nextIndex));
       }
-      removeTab(tab);
-      fireTabClosed(tab);
-   }
-
-   public void removeTab(Tab tab) {
       tabs.remove(tab);
+      tabArea.remove(tab.getComponent());
       tabBar.validate();
       tabBar.repaint();
-      if (tabs.getComponentCount() == 0) {
-         separator.setBackground(getBackground());
-      }
       tabsResized();
-      tabArea.remove(tab.getComponent());
+      if (tabs.getComponentCount() == 0) {
+         Container parent = getParent();
+         if (parent instanceof JSplitPane) {
+            JSplitPane splitParent = (JSplitPane) parent;
+            Component otherComponent = (splitParent.getLeftComponent() == this)
+                  ? splitParent.getRightComponent()
+                  : splitParent.getLeftComponent();
+            Container parentOfParent = splitParent.getParent();
+            if (parentOfParent instanceof JSplitPane) {
+               JSplitPane splitParentOfParent = (JSplitPane) parentOfParent;
+               int dividerLocation = splitParentOfParent.getDividerLocation();
+               splitParentOfParent.add(otherComponent, (splitParentOfParent.getLeftComponent() == splitParent)
+                     ? JSplitPane.LEFT
+                     : JSplitPane.RIGHT);
+               splitParentOfParent.setDividerLocation(dividerLocation);
+            } else {
+               parentOfParent.remove(splitParent);
+               parentOfParent.add(otherComponent);
+               parentOfParent.validate();
+            }
+         } else {
+            tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
+         }
+      }
+   }
+
+   public JPanel getTabs() {
+      return tabs;
+   }
+
+   public JScrollPane getTabsScroll() {
+      return tabsScroll;
    }
 
    private void tabsResized() {
@@ -251,5 +298,9 @@ public class TabContainer extends JPanel {
             ((TabClosedListener) listeners[i + 1]).tabClosed(tab);
          }
       }
+   }
+
+   public static Tab getTab(String id) {
+      return allTabs.get(id);
    }
 }
