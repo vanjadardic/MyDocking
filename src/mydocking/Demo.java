@@ -27,7 +27,7 @@ public class Demo extends javax.swing.JFrame {
       getContentPane().setLayout(new java.awt.GridLayout(1, 1));
       getContentPane().add(tabManager1);
 
-      setBounds(0, 0, 674, 440);
+      setBounds(0, 0, 1000, 600);
    }// </editor-fold>//GEN-END:initComponents
 
    public static void main(String args[]) {

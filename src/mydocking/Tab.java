@@ -31,17 +31,12 @@ public class Tab extends JPanel {
    private final JButton closeButton;
    private final Component component;
    private boolean isActive;
-   private Color backgroundInactive;
-   private Color backgroundHover;
-   private Color backgroundActive;
-   private Color foregroundInactive;
-   private Color foregroundHover;
-   private Color foregroundActive;
+   private TabColors tabColors;
 
-   public Tab(String id, String titleText, Component component) {
+   public Tab(String id, String titleText, Component component, TabColors tabColors) {
       this.id = id;
       this.component = component;
-      isActive = false;
+      this.tabColors = tabColors;
 
       setLayout(new BoxLayout(this, BoxLayout.LINE_AXIS));
       setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 3));
@@ -59,14 +54,6 @@ public class Tab extends JPanel {
       closeButton.setFocusPainted(false);
       closeButton.setFocusable(false);
       add(closeButton);
-
-      setBackgroundActive(new Color(0x00, 0x7a, 0xcc));
-      setBackgroundHover(new Color(0x1c, 0x97, 0xea));
-      setBackgroundInactive(new Color(0xcc, 0xce, 0xdb));
-
-      setForegroundActive(new Color(0xff, 0xff, 0xff));
-      setForegroundHover(new Color(0xff, 0xff, 0xff));
-      setForegroundInactive(new Color(0x6d, 0x6d, 0x6d));
 
       addMouseListener(new MouseAdapter() {
          @Override
@@ -124,6 +111,10 @@ public class Tab extends JPanel {
       });
    }
 
+   public Tab(String id, String titleText, Component component) {
+      this(id, titleText, component, TabColors.BLUE);
+   }
+
    private static DataFlavor getDataFlavor() {
       try {
          return new DataFlavor(DataFlavor.javaJVMLocalObjectMimeType + "-" + System.currentTimeMillis() + ";class=\"" + Tab.class.getName() + "\"");
@@ -133,19 +124,19 @@ public class Tab extends JPanel {
    }
 
    public void setActive() {
-      setBackground(getBackgroundActive());
-      setForeground(getForegroundActive());
+      setBackground(tabColors.getBackgroundActive());
+      setForeground(tabColors.getForegroundActive());
       isActive = true;
    }
 
    public void setHover() {
-      setBackground(getBackgroundHover());
-      setForeground(getForegroundHover());
+      setBackground(tabColors.getBackgroundHover());
+      setForeground(tabColors.getForegroundHover());
    }
 
    public void setInactive() {
-      setBackground(getBackgroundInactive());
-      setForeground(getForegroundInactive());
+      setBackground(tabColors.getBackgroundInactive());
+      setForeground(tabColors.getForegroundInactive());
       isActive = false;
    }
 
@@ -194,52 +185,17 @@ public class Tab extends JPanel {
       }
    }
 
-   public Color getBackgroundInactive() {
-      return backgroundInactive;
+   public TabColors getTabColors() {
+      return tabColors;
    }
 
-   public void setBackgroundInactive(Color backgroundInactive) {
-      this.backgroundInactive = backgroundInactive;
-   }
-
-   public Color getBackgroundHover() {
-      return backgroundHover;
-   }
-
-   public void setBackgroundHover(Color backgroundHover) {
-      this.backgroundHover = backgroundHover;
-   }
-
-   public Color getBackgroundActive() {
-      return backgroundActive;
-   }
-
-   public void setBackgroundActive(Color backgroundActive) {
-      this.backgroundActive = backgroundActive;
-   }
-
-   public Color getForegroundInactive() {
-      return foregroundInactive;
-   }
-
-   public void setForegroundInactive(Color foregroundInactive) {
-      this.foregroundInactive = foregroundInactive;
-   }
-
-   public Color getForegroundHover() {
-      return foregroundHover;
-   }
-
-   public void setForegroundHover(Color foregroundHover) {
-      this.foregroundHover = foregroundHover;
-   }
-
-   public Color getForegroundActive() {
-      return foregroundActive;
-   }
-
-   public void setForegroundActive(Color foregroundActive) {
-      this.foregroundActive = foregroundActive;
+   public void setTabColors(TabColors tabColors) {
+      this.tabColors = tabColors;
+      if (isActive) {
+         setActive();
+      } else {
+         setInactive();
+      }
    }
 
    public TabContainer getTabContainer() {

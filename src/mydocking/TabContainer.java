@@ -160,7 +160,7 @@ public class TabContainer extends JPanel {
 
       CardLayout cl = (CardLayout) (tabArea.getLayout());
       cl.show(tabArea, tab.getId());
-      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, tab.getBackgroundActive()));
+      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, tab.getTabColors().getBackgroundActive()));
 
       tabs.scrollRectToVisible(tab.getBounds());
    }
@@ -177,10 +177,10 @@ public class TabContainer extends JPanel {
       setActiveTab(tab);
    }
 
-   public Tab addNewTab(String title, Component component) {
+   public Tab addNewTab(String title, Component component, TabColors tabColors) {
       String id = Integer.toString(nextId.getAndIncrement());
 
-      final Tab newTab = new Tab(id, title, component);
+      final Tab newTab = new Tab(id, title, component, tabColors);
       newTab.addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent evt) {

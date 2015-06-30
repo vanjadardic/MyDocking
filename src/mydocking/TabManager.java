@@ -47,6 +47,14 @@ public class TabManager extends JPanel {
       addTab(tc);
       addTab(tc);
       addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
+      addTab(tc);
 
       add(tc);
 
@@ -200,9 +208,11 @@ public class TabManager extends JPanel {
    }
 
    private Tab addTab(TabContainer tc) {
+      TabColors[] c = new TabColors[]{TabColors.PURPLE, TabColors.RED, TabColors.GREEN, TabColors.YELLOW,
+         TabColors.BLUE, TabColors.PINK, TabColors.LIME, TabColors.ORANGE};
       JPanel jp = new JPanel();
       jp.setBackground(new Color(0.5f + (float) Math.random() / 2, 0.5f + (float) Math.random() / 2, 0.5f + (float) Math.random() / 2));
-      return tc.addNewTab("New Tab #" + ++cnt, jp);
+      return tc.addNewTab("New Tab #" + ++cnt, jp, c[(int) (Math.random() * c.length)]);
    }
 
    public Point getDropPoint() {
