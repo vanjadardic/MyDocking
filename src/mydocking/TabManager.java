@@ -38,7 +38,7 @@ public class TabManager extends JPanel {
    public TabManager() {
       setLayout(new GridLayout(1, 1));
 
-      TabContainer tc = new TabContainer();
+      TabContainer tc = new TabContainer(this);
       addTab(tc);
       addTab(tc);
       addTab(tc);
@@ -57,6 +57,7 @@ public class TabManager extends JPanel {
       addTab(tc);
 
       add(tc);
+      layoutChanged();
 
       DropTarget dropTarget = new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetListener() {
          @Override
@@ -105,7 +106,7 @@ public class TabManager extends JPanel {
                      return;
                   }
                   tabContainerSrc.removeTab(tab);
-                  TabContainer tcNew = new TabContainer();
+                  TabContainer tcNew = new TabContainer(TabManager.this);
                   tcNew.addTab(tab);
                   int whichSplit = (dropLocation.location == DropLocation.LLEFT || dropLocation.location == DropLocation.RRIGHT)
                         ? JSplitPane.HORIZONTAL_SPLIT
@@ -137,6 +138,7 @@ public class TabManager extends JPanel {
                      split.setRightComponent(tcNew);
                   }
                   split.setDividerLocation(dividerLocation);
+                  layoutChanged();
                } else {
                   if (dropLocation.tabContainer == null) {
                      return;
@@ -147,7 +149,7 @@ public class TabManager extends JPanel {
                   if (dropLocation.location == DropLocation.LEFT || dropLocation.location == DropLocation.TOP
                         || dropLocation.location == DropLocation.RIGHT || dropLocation.location == DropLocation.BOTTOM) {
                      tabContainerSrc.removeTab(tab);
-                     TabContainer tcNew = new TabContainer();
+                     TabContainer tcNew = new TabContainer(TabManager.this);
                      tcNew.addTab(tab);
                      int whichSplit = (dropLocation.location == DropLocation.LEFT || dropLocation.location == DropLocation.RIGHT)
                            ? JSplitPane.HORIZONTAL_SPLIT
@@ -175,6 +177,7 @@ public class TabManager extends JPanel {
                         split.setRightComponent(tcNew);
                      }
                      split.setDividerLocation(dividerLocation);
+                     layoutChanged();
                   } else if (dropLocation.location == DropLocation.TABS) {
                      if (tabContainerSrc == dropLocation.tabContainer) {
                         if (dropLocation.tab == null) {
@@ -189,7 +192,7 @@ public class TabManager extends JPanel {
                            }
                         }
                         dropLocation.tabContainer.validate();
-                     } else if (dropLocation.location == DropLocation.TABS) {
+                     } else {
                         tabContainerSrc.removeTab(tab);
                         if (dropLocation.tab != null) {
                            dropLocation.tabContainer.addTab(tab, dropLocation.tabContainer.getTabs().getComponentZOrder(dropLocation.tab));
@@ -330,6 +333,48 @@ public class TabManager extends JPanel {
       }
    }
 
+   private JSplitPane createEmptyJSplitPane(int whichSplit) {
+      JSplitPane split = new JSplitPane(whichSplit, true);
+      split.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+      split.setDividerSize(4);
+      split.setUI(new BasicSplitPaneUI() {
+         @Override
+         public BasicSplitPaneDivider createDefaultDivider() {
+            return new BasicSplitPaneDivider(this) {
+               @Override
+               public void setBorder(Border b) {
+               }
+            };
+         }
+      });
+      return split;
+   }
+
+   public void layoutChanged() {
+      layoutChanged(getComponent(0), 0x00);
+   }
+
+   private static final int LC_LEFT = 0x01;
+   private static final int LC_RIGHT = 0x02;
+   private static final int LC_TOP = 0x04;
+   private static final int LC_BOTTOM = 0x08;
+
+   private void layoutChanged(Component c, int sides) {
+      if (c instanceof TabContainer) {
+         TabContainer cc = (TabContainer) c;
+         cc.setBorderInsets(new Insets(
+               (sides & LC_TOP) > 0 ? 1 : 0,
+               (sides & LC_LEFT) > 0 ? 1 : 0,
+               (sides & LC_BOTTOM) > 0 ? 1 : 0,
+               (sides & LC_RIGHT) > 0 ? 1 : 0
+         ));
+      } else if (c instanceof JSplitPane) {
+         JSplitPane cc = (JSplitPane) c;
+         layoutChanged(cc.getLeftComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_RIGHT : LC_BOTTOM));
+         layoutChanged(cc.getRightComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_LEFT : LC_TOP));
+      }
+   }
+
    private class DropLocation {
 
       public static final int LEFT = 0;
@@ -449,22 +494,5 @@ public class TabManager extends JPanel {
          scrollRight = null;
       }
       return dropLocation;
-   }
-
-   private JSplitPane createEmptyJSplitPane(int whichSplit) {
-      JSplitPane split = new JSplitPane(whichSplit, true);
-      split.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
-      split.setDividerSize(4);
-      split.setUI(new BasicSplitPaneUI() {
-         @Override
-         public BasicSplitPaneDivider createDefaultDivider() {
-            return new BasicSplitPaneDivider(this) {
-               @Override
-               public void setBorder(Border b) {
-               }
-            };
-         }
-      });
-      return split;
    }
 }

@@ -29,7 +29,9 @@ import javax.swing.ScrollPaneConstants;
 public class TabContainer extends JPanel {
 
    private static final AtomicInteger nextId = new AtomicInteger();
+   private final TabManager tabManager;
    private Tab activeTab;
+   private Insets borderInsets;
    private final JPanel tabBar;
    private final JPanel tabs;
    private final JScrollPane tabsScroll;
@@ -40,7 +42,8 @@ public class TabContainer extends JPanel {
    private final JPanel tabArea;
    private static final Map<String, Tab> allTabs = new HashMap<>();
 
-   public TabContainer() {
+   public TabContainer(TabManager tabManager) {
+      this.tabManager = tabManager;
       setLayout(new BorderLayout());
       setMinimumSize(new Dimension(10, 10));
 
@@ -139,7 +142,7 @@ public class TabContainer extends JPanel {
       add(tabBar, BorderLayout.NORTH);
 
       tabArea = new JPanel();
-      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground())); //TODO show only inner borders
+      setBorderInsets(new Insets(1, 1, 1, 1));
       tabArea.setLayout(new CardLayout());
       add(tabArea, BorderLayout.CENTER);
 
@@ -159,10 +162,10 @@ public class TabContainer extends JPanel {
       activeTab.setActive();
 
       CardLayout cl = (CardLayout) (tabArea.getLayout());
-      cl.show(tabArea, tab.getId());
-      tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, tab.getTabColors().getBackgroundActive()));
+      cl.show(tabArea, activeTab.getId());
+      setBorderInsets(borderInsets);
 
-      tabs.scrollRectToVisible(tab.getBounds());
+      tabs.scrollRectToVisible(activeTab.getBounds());
    }
 
    public void addTab(Tab tab) {
@@ -241,8 +244,10 @@ public class TabContainer extends JPanel {
                parentOfParent.add(otherComponent);
                parentOfParent.validate();
             }
+            tabManager.layoutChanged();
          } else {
-            tabArea.setBorder(BorderFactory.createMatteBorder(2, 1, 1, 1, getBackground()));
+            activeTab = null;
+            setBorderInsets(borderInsets);
          }
       }
    }
@@ -302,5 +307,14 @@ public class TabContainer extends JPanel {
 
    public static Tab getTab(String id) {
       return allTabs.get(id);
+   }
+
+   public void setBorderInsets(Insets borderInsets) {
+      this.borderInsets = borderInsets;
+      this.borderInsets.top = 2;
+      tabArea.setBorder(BorderFactory.createMatteBorder(
+            this.borderInsets.top, this.borderInsets.left, this.borderInsets.bottom, this.borderInsets.right,
+            activeTab == null ? getBackground() : activeTab.getTabColors().getBackgroundActive()
+      ));
    }
 }
