@@ -265,7 +265,10 @@ public class TabContainer extends JPanel {
       if (controls.isVisible()) {
          width -= controls.getWidth();
       }
-      controls.setVisible(tabsScroll.getWidth() < width);
+      if (controls.isVisible() != tabsScroll.getWidth() < width) {
+         controls.setVisible(!controls.isVisible());
+         tabBar.validate();
+      }
    }
 
    public void addTabClosingListener(TabClosingListener listener) {

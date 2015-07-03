@@ -24,7 +24,6 @@ import javax.swing.BoundedRangeModel;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
-import javax.swing.border.Border;
 import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 
@@ -340,9 +339,64 @@ public class TabManager extends JPanel {
       split.setUI(new BasicSplitPaneUI() {
          @Override
          public BasicSplitPaneDivider createDefaultDivider() {
-            return new BasicSplitPaneDivider(this) {
+            return new CustomSplitPaneDivider(this) {
+
+               Dimension minSize1;
+               Dimension minSize2;
+
                @Override
-               public void setBorder(Border b) {
+               protected void prepareForDragging2() {
+                  JSplitPane split = getSplitPane();
+                  Component c1 = findComponentR(split.getLeftComponent(), split.getOrientation(), false);
+                  Component c2 = findComponentR(split.getRightComponent(), split.getOrientation(), true);
+                  if (c1 == split.getLeftComponent()) {
+                     minSize1 = null;
+                  } else {
+                     minSize1 = split.getLeftComponent().getMinimumSize();
+                     if (split.getOrientation() == JSplitPane.HORIZONTAL_SPLIT) {
+                        split.getLeftComponent().setMinimumSize(new Dimension(
+                              split.getLeftComponent().getSize().width - c1.getSize().width + c1.getMinimumSize().width,
+                              minSize1.height
+                        ));
+
+                     } else {
+                        split.getLeftComponent().setMinimumSize(new Dimension(
+                              minSize1.width,
+                              split.getLeftComponent().getSize().height - c1.getSize().height + c1.getMinimumSize().height
+                        ));
+                     }
+                  }
+                  if (c2 == split.getRightComponent()) {
+                     minSize2 = null;
+                  } else {
+                     minSize2 = split.getRightComponent().getMinimumSize();
+                     if (split.getOrientation() == JSplitPane.HORIZONTAL_SPLIT) {
+                        split.getRightComponent().setMinimumSize(new Dimension(
+                              split.getRightComponent().getSize().width - c2.getSize().width + c2.getMinimumSize().width,
+                              minSize2.height
+                        ));
+                     } else {
+                        split.getRightComponent().setMinimumSize(new Dimension(
+                              minSize2.width,
+                              split.getRightComponent().getSize().height - c2.getSize().height + c2.getMinimumSize().height
+                        ));
+                     }
+                  }
+                  setResizeWeightR(split.getRightComponent(), split.getOrientation(), 1);
+               }
+
+               @Override
+               protected void finishDraggingTo2() {
+                  JSplitPane split = getSplitPane();
+                  if (minSize1 != null) {
+                     split.getLeftComponent().setMinimumSize(minSize1);
+                     minSize1 = null;
+                  }
+                  if (minSize2 != null) {
+                     split.getRightComponent().setMinimumSize(minSize2);
+                     minSize2 = null;
+                  }
+                  setResizeWeightR(split.getRightComponent(), split.getOrientation(), 0);
                }
             };
          }
@@ -350,8 +404,29 @@ public class TabManager extends JPanel {
       return split;
    }
 
+   private Component findComponentR(Component c, int whichSplit, boolean whichSide) {
+      if (c instanceof JSplitPane) {
+         JSplitPane cc = (JSplitPane) c;
+         if (cc.getOrientation() == whichSplit) {
+            return findComponentR(whichSide ? cc.getLeftComponent() : cc.getRightComponent(), whichSplit, whichSide);
+         }
+      }
+      return c;
+   }
+
+   private void setResizeWeightR(Component c, int whichSplit, double weight) {
+      if (c instanceof JSplitPane) {
+         JSplitPane cc = (JSplitPane) c;
+         if (cc.getOrientation() == whichSplit) {
+            cc.setResizeWeight(weight);
+            setResizeWeightR(cc.getLeftComponent(), whichSplit, weight);
+            setResizeWeightR(cc.getRightComponent(), whichSplit, weight);
+         }
+      }
+   }
+
    public void layoutChanged() {
-      layoutChanged(getComponent(0), 0x00);
+      layoutChangedR(getComponent(0), 0x00);
    }
 
    private static final int LC_LEFT = 0x01;
@@ -359,7 +434,7 @@ public class TabManager extends JPanel {
    private static final int LC_TOP = 0x04;
    private static final int LC_BOTTOM = 0x08;
 
-   private void layoutChanged(Component c, int sides) {
+   private void layoutChangedR(Component c, int sides) {
       if (c instanceof TabContainer) {
          TabContainer cc = (TabContainer) c;
          cc.setBorderInsets(new Insets(
@@ -370,8 +445,8 @@ public class TabManager extends JPanel {
          ));
       } else if (c instanceof JSplitPane) {
          JSplitPane cc = (JSplitPane) c;
-         layoutChanged(cc.getLeftComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_RIGHT : LC_BOTTOM));
-         layoutChanged(cc.getRightComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_LEFT : LC_TOP));
+         layoutChangedR(cc.getLeftComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_RIGHT : LC_BOTTOM));
+         layoutChangedR(cc.getRightComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_LEFT : LC_TOP));
       }
    }
 
