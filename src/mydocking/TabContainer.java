@@ -6,10 +6,15 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Insets;
+import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.HashMap;
@@ -25,6 +30,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingUtilities;
 
 public class TabContainer extends JPanel {
 
@@ -69,6 +75,34 @@ public class TabContainer extends JPanel {
          public void mouseWheelMoved(MouseWheelEvent evt) {
             BoundedRangeModel range = tabsScroll.getHorizontalScrollBar().getModel();
             range.setValue((int) (range.getValue() + evt.getPreciseWheelRotation() * 50));
+         }
+      });
+      tabsScroll.getHorizontalScrollBar().addAdjustmentListener(new AdjustmentListener() {
+         @Override
+         public void adjustmentValueChanged(AdjustmentEvent e) {
+            Point mousePositionScreen = new Point(MouseInfo.getPointerInfo().getLocation());
+            for (Component c : tabs.getComponents()) {
+               Tab tab = (Tab) c;
+               fireMouseEvent(tab, mousePositionScreen);
+               fireMouseEvent(tab.getCloseButton(), mousePositionScreen);
+            }
+         }
+
+         private void fireMouseEvent(Component c, Point pScreen) {
+            Point p = c.getMousePosition();
+            if (p == null) {
+               p = new Point(pScreen);
+               SwingUtilities.convertPointFromScreen(p, c);
+               MouseEvent mouseEvent = new MouseEvent(c, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, p.x, p.y, 0, false);
+               for (MouseListener mouseListener : c.getMouseListeners()) {
+                  mouseListener.mouseExited(mouseEvent);
+               }
+            } else {
+               MouseEvent mouseEvent = new MouseEvent(c, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, p.x, p.y, 0, false);
+               for (MouseListener mouseListener : c.getMouseListeners()) {
+                  mouseListener.mouseEntered(mouseEvent);
+               }
+            }
          }
       });
       tabsScroll.setViewportView(tabs);

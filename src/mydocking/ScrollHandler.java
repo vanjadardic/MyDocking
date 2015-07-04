@@ -16,7 +16,7 @@ public abstract class ScrollHandler {
       timer = new Timer(0, new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            ScrollHandler.this.handle();
+            handle();
             if (times.length > state + 2) {
                cnt++;
                if (cnt == times[state + 1]) {
