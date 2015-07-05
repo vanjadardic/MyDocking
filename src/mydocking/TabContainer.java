@@ -23,12 +23,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 
@@ -145,27 +146,39 @@ public class TabContainer extends JPanel {
       buttonDown.addMouseListener(new MouseAdapter() {
          @Override
          public void mousePressed(MouseEvent e) {
-            JComboBox<Component> tmpCombo = new JComboBox<>(tabs.getComponents());
-            tmpCombo.setMaximumRowCount(Integer.MAX_VALUE);
-            tmpCombo.setRenderer(new OpenTabsListCellRenderer(250, activeTab));
-            final OpenTabsComboPopup openTabsComboPopup = new OpenTabsComboPopup(tmpCombo);
-            openTabsComboPopup.show(
-                  e.getComponent(),
-                  buttonDown.getWidth() - openTabsComboPopup.getPreferredSize().width,
-                  buttonDown.getHeight()
-            );
+            final OpenTabsComboPopup openTabsComboPopup = new OpenTabsComboPopup(
+                  tabs.getComponents(), activeTab, 250);
             openTabsComboPopup.getList().addMouseListener(new MouseAdapter() {
                @Override
                public void mouseClicked(MouseEvent e) {
                   Tab tab = (Tab) openTabsComboPopup.getList().getSelectedValue();
-                  openTabsComboPopup.hide();
                   if (e.getButton() == MouseEvent.BUTTON2) {
+                     DefaultComboBoxModel dataModel = (DefaultComboBoxModel) openTabsComboPopup.getList().getModel();
+                     int index = dataModel.getIndexOf(tab);
+                     dataModel.removeElementAt(index);
+                     if (dataModel.getSize() > 0) {
+                        ListSelectionModel selectionModel = openTabsComboPopup.getList().getSelectionModel();
+                        if (index < dataModel.getSize()) {
+                           selectionModel.setSelectionInterval(index, index);
+                        } else {
+                           selectionModel.clearSelection();
+                        }
+                        openTabsComboPopup.resize();
+                     } else {
+                        openTabsComboPopup.hide();
+                     }
                      fireTabClosing(tab);
                   } else {
                      setActiveTab(tab);
+                     openTabsComboPopup.hide();
                   }
                }
             });
+            openTabsComboPopup.show(
+                  e.getComponent(),
+                  buttonDown.getWidth() - openTabsComboPopup.getPreferredSize().width + 1,
+                  buttonDown.getHeight()
+            );
          }
       });
 
