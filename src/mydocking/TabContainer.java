@@ -17,6 +17,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,10 +33,14 @@ import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 public class TabContainer extends JPanel {
 
    private static final AtomicInteger nextId = new AtomicInteger();
+   private static final Map<String, Tab> allTabs = new HashMap<>();
    private final TabManager tabManager;
    private Tab activeTab;
    private Insets borderInsets;
@@ -47,7 +52,6 @@ public class TabContainer extends JPanel {
    private final JButton buttonRight;
    private final JButton buttonDown;
    private final JPanel tabArea;
-   private static final Map<String, Tab> allTabs = new HashMap<>();
 
    public TabContainer(TabManager tabManager) {
       this.tabManager = tabManager;
@@ -81,26 +85,25 @@ public class TabContainer extends JPanel {
       tabsScroll.getHorizontalScrollBar().addAdjustmentListener(new AdjustmentListener() {
          @Override
          public void adjustmentValueChanged(AdjustmentEvent e) {
-            Point mousePositionScreen = new Point(MouseInfo.getPointerInfo().getLocation());
             for (Component c : tabs.getComponents()) {
                Tab tab = (Tab) c;
-               fireMouseEvent(tab, mousePositionScreen);
-               fireMouseEvent(tab.getCloseButton(), mousePositionScreen);
+               fireMouseEvent(tab);
+               fireMouseEvent(tab.getCloseButton());
             }
          }
 
-         private void fireMouseEvent(Component c, Point pScreen) {
-            Point p = c.getMousePosition();
-            if (p == null) {
-               p = new Point(pScreen);
-               SwingUtilities.convertPointFromScreen(p, c);
-               MouseEvent mouseEvent = new MouseEvent(c, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, p.x, p.y, 0, false);
-               for (MouseListener mouseListener : c.getMouseListeners()) {
+         private void fireMouseEvent(Component component) {
+            Point point = component.getMousePosition();
+            if (point == null) {
+               point = new Point(MouseInfo.getPointerInfo().getLocation());
+               SwingUtilities.convertPointFromScreen(point, component);
+               MouseEvent mouseEvent = new MouseEvent(component, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, point.x, point.y, 0, false);
+               for (MouseListener mouseListener : component.getMouseListeners()) {
                   mouseListener.mouseExited(mouseEvent);
                }
             } else {
-               MouseEvent mouseEvent = new MouseEvent(c, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, p.x, p.y, 0, false);
-               for (MouseListener mouseListener : c.getMouseListeners()) {
+               MouseEvent mouseEvent = new MouseEvent(component, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, point.x, point.y, 0, false);
+               for (MouseListener mouseListener : component.getMouseListeners()) {
                   mouseListener.mouseEntered(mouseEvent);
                }
             }
@@ -201,6 +204,39 @@ public class TabContainer extends JPanel {
       });
    }
 
+   public void save(Element root, TabCustomDataHandler tabCustomDataHandler) {
+      root.setAttribute("tabsScroll", Integer.toString(tabsScroll.getHorizontalScrollBar().getValue()));
+      Document doc = root.getOwnerDocument();
+      for (Component c : tabs.getComponents()) {
+         Element tabElement = doc.createElement("tab");
+         ((Tab) c).save(tabElement, tabCustomDataHandler);
+         root.appendChild(tabElement);
+      }
+   }
+
+   public static TabContainer restore(TabContainer tabContainer, Element root, TabCustomDataHandler tabCustomDataHandler) throws IOException {
+      NodeList tabNodes = root.getElementsByTagName("tab");
+      Tab activeTab2 = null;
+      for (int i = 0; i < tabNodes.getLength(); i++) {
+         Tab tab = Tab.restore((Element) tabNodes.item(i), tabCustomDataHandler);
+         if (tab.isActive()) {
+            activeTab2 = tab;
+         }
+         tabContainer.addNewTab(tab);
+      }
+      if (activeTab2 != null) {
+         tabContainer.setActiveTab(activeTab2);
+      }
+      final int tabsScrollValue = Integer.parseInt(root.getAttribute("tabsScroll"));
+      SwingUtilities.invokeLater(new Runnable() {
+         @Override
+         public void run() {
+            tabContainer.tabsScroll.getHorizontalScrollBar().setValue(tabsScrollValue);
+         }
+      });
+      return tabContainer;
+   }
+
    public void setActiveTab(Tab tab) {
       if (activeTab != null) {
          activeTab.setInactive();
@@ -213,6 +249,7 @@ public class TabContainer extends JPanel {
       setBorderInsets(borderInsets);
 
       tabs.scrollRectToVisible(activeTab.getBounds());
+      tabManager.setActiveTabContainer(this);
    }
 
    public void addTab(Tab tab) {
@@ -251,6 +288,32 @@ public class TabContainer extends JPanel {
 
       allTabs.put(newTab.getId(), newTab);
       return newTab;
+   }
+
+   public void addNewTab(final Tab newTab) {
+      newTab.addMouseListener(new MouseAdapter() {
+         @Override
+         public void mousePressed(MouseEvent evt) {
+            if (evt.getButton() == MouseEvent.BUTTON1) {
+               newTab.getTabContainer().setActiveTab(newTab);
+            } else if (evt.getButton() == MouseEvent.BUTTON2) {
+               newTab.getTabContainer().fireTabClosing(newTab);
+            }
+         }
+      });
+      newTab.getCloseButton().addMouseListener(new MouseAdapter() {
+         @Override
+         public void mousePressed(MouseEvent evt) {
+            newTab.getTabContainer().fireTabClosing(newTab);
+         }
+      });
+      addTab(newTab);
+
+      allTabs.put(newTab.getId(), newTab);
+      int id = Integer.parseInt(newTab.getId());
+      if (id >= nextId.get()) {
+         nextId.set(id + 1);
+      }
    }
 
    public void closeTab(Tab tab) {

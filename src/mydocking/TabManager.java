@@ -18,7 +18,9 @@ import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
 import javax.swing.JPanel;
@@ -26,39 +28,51 @@ import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 public class TabManager extends JPanel {
 
-   private static int cnt = 0;
    private Point dropPoint = null;
    private ScrollHandler scrollLeft = null;
    private ScrollHandler scrollRight = null;
+   private TabCustomDataHandler tabCustomDataHandler;
+   private TabContainer activeTabContainer = null;
+   private TabContainer activeTabContainerRestore = null;
 
    public TabManager() {
+      this(true);
+   }
+
+   private TabManager(boolean isNew) {
+      tabCustomDataHandler = new DemoTabCustomDataHandler() {
+         @Override
+         public byte[] saveCustomData(Tab tab) {
+            return new byte[0];
+         }
+
+         @Override
+         public void restoreCustomData(Tab tab, byte[] data) {
+            tab.setComponent(new JPanel());
+         }
+      };
+
       setLayout(new GridLayout(1, 1));
 
-      TabContainer tc = new TabContainer(this);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
-      addTab(tc);
+      if (isNew) {
+         TabContainer tc = new TabContainer(this);
+         add(tc);
+         setActiveTabContainer(tc);
+      }
 
-      add(tc);
-      layoutChanged();
-
-      DropTarget dropTarget = new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetListener() {
+      new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetListener() {
          @Override
          public void dragEnter(DropTargetDragEvent dtde) {
             if (!dtde.isDataFlavorSupported(Tab.DATA_FLAVOR) || dtde.getDropAction() != DnDConstants.ACTION_MOVE) {
@@ -206,15 +220,108 @@ public class TabManager extends JPanel {
             }
          }
       }, true, null);
-
    }
 
-   private Tab addTab(TabContainer tc) {
-      TabColors[] c = new TabColors[]{TabColors.PURPLE, TabColors.RED, TabColors.GREEN, TabColors.YELLOW,
-         TabColors.BLUE, TabColors.PINK, TabColors.LIME, TabColors.ORANGE};
-      JPanel jp = new JPanel();
-      jp.setBackground(new Color(0.5f + (float) Math.random() / 2, 0.5f + (float) Math.random() / 2, 0.5f + (float) Math.random() / 2));
-      return tc.addNewTab("New Tab #" + ++cnt, jp, c[(int) (Math.random() * c.length)]);
+   public Tab addNewTab(String title, Component component, TabColors tabColors) {
+      return activeTabContainer.addNewTab(title, component, tabColors);
+   }
+
+   public String save() throws Exception {
+      DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+      DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+      Document doc = docBuilder.newDocument();
+      doc.setXmlStandalone(true);
+
+      saveR(doc, getComponent(0));
+
+      TransformerFactory transformerFactory = TransformerFactory.newInstance();
+      Transformer transformer = transformerFactory.newTransformer();
+      StringWriter sw = new StringWriter();
+      transformer.transform(new DOMSource(doc), new StreamResult(sw));
+      return sw.toString();
+   }
+
+   private void saveR(Node root, Component c) {
+      Document doc = (root instanceof Document) ? ((Document) root) : root.getOwnerDocument();
+      if (c instanceof TabContainer) {
+         TabContainer tc = (TabContainer) c;
+         Element e = doc.createElement("tabContainer");
+         if (tc == activeTabContainer) {
+            e.setAttribute("active", Boolean.toString(true));
+         }
+         tc.save(e, tabCustomDataHandler);
+         root.appendChild(e);
+      } else if (c instanceof JSplitPane) {
+         JSplitPane split = (JSplitPane) c;
+         Element e = doc.createElement("split");
+         e.setAttribute("orientation", Integer.toString(split.getOrientation()));
+         e.setAttribute("dividerLocation", Integer.toString(split.getDividerLocation()));
+         root.appendChild(e);
+         Element leftElement = doc.createElement("left");
+         saveR(leftElement, split.getLeftComponent());
+         e.appendChild(leftElement);
+         Element rightElement = doc.createElement("right");
+         saveR(rightElement, split.getRightComponent());
+         e.appendChild(rightElement);
+      }
+   }
+
+   public static TabManager restore(String xmlData, TabCustomDataHandler tabCustomDataHandler) throws Exception {
+      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+      DocumentBuilder db = dbf.newDocumentBuilder();
+      Document doc = db.parse(new ByteArrayInputStream(xmlData.getBytes()));
+
+      TabManager tabManager = new TabManager(false);
+      tabManager.setTabCustomDataHandler(tabCustomDataHandler);
+
+      tabManager.restoreR(doc, tabManager, null);
+      if (tabManager.activeTabContainerRestore != null) {
+         tabManager.setActiveTabContainer(tabManager.activeTabContainerRestore);
+      }
+      tabManager.layoutChanged();
+      return tabManager;
+   }
+
+   public void setActiveTab(Tab tab) {
+      tab.getTabContainer().setActiveTab(tab);
+   }
+
+   private void restoreR(Node root, Container container, Object contraint) throws IOException {
+      Node node = root.getFirstChild();
+      while (node != null) {
+         if (node.getNodeType() == Node.ELEMENT_NODE) {
+            Element element = (Element) node;
+            if ("tabContainer".equals(element.getTagName())) {
+               TabContainer tabContainer = new TabContainer(this);
+               TabContainer.restore(tabContainer, element, tabCustomDataHandler);
+               if (Boolean.parseBoolean(element.getAttribute("active"))) {
+                  activeTabContainerRestore = tabContainer;
+               }
+               container.add(tabContainer, contraint);
+            } else if ("split".equals(element.getTagName())) {
+               JSplitPane split = createEmptyJSplitPane(Integer.parseInt(element.getAttribute("orientation")));
+               Node node2 = element.getFirstChild();
+               while (node2 != null) {
+                  if (node2.getNodeType() == Node.ELEMENT_NODE) {
+                     Element element2 = (Element) node2;
+                     if ("left".equals(element2.getTagName())) {
+                        restoreR(element2, split, JSplitPane.LEFT);
+                     } else if ("right".equals(element2.getTagName())) {
+                        restoreR(element2, split, JSplitPane.RIGHT);
+                     }
+                  }
+                  node2 = node2.getNextSibling();
+               }
+               split.setDividerLocation(Integer.parseInt(element.getAttribute("dividerLocation")));
+               container.add(split, contraint);
+            }
+         }
+         node = node.getNextSibling();
+      }
+   }
+
+   public void setActiveTabContainer(TabContainer activeTabContainer) {
+      this.activeTabContainer = activeTabContainer;
    }
 
    public Point getDropPoint() {
@@ -448,6 +555,14 @@ public class TabManager extends JPanel {
          layoutChangedR(cc.getLeftComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_RIGHT : LC_BOTTOM));
          layoutChangedR(cc.getRightComponent(), sides | (cc.getOrientation() == JSplitPane.HORIZONTAL_SPLIT ? LC_LEFT : LC_TOP));
       }
+   }
+
+   public TabCustomDataHandler getTabCustomDataHandler() {
+      return tabCustomDataHandler;
+   }
+
+   public void setTabCustomDataHandler(TabCustomDataHandler tabCustomDataHandler) {
+      this.tabCustomDataHandler = tabCustomDataHandler;
    }
 
    private class DropLocation {

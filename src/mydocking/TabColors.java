@@ -1,6 +1,8 @@
 package mydocking;
 
 import java.awt.Color;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 public class TabColors {
 
@@ -43,6 +45,39 @@ public class TabColors {
       this.foregroundActive = foregroundActive;
       this.foregroundHover = foregroundHover;
       this.foregroundInactive = foregroundInactive;
+   }
+
+   public void save(Element root) {
+      Document doc = root.getOwnerDocument();
+      root.appendChild(doc.createTextNode(
+            String.format("%08x", backgroundActive.getRGB())
+            + String.format("%08x", backgroundHover.getRGB())
+            + String.format("%08x", backgroundInactive.getRGB())
+            + String.format("%08x", foregroundActive.getRGB())
+            + String.format("%08x", foregroundHover.getRGB())
+            + String.format("%08x", foregroundInactive.getRGB())
+      ));
+   }
+
+   public static TabColors restore(Element root) {
+      String data = root.getTextContent();
+      return new TabColors(
+            parseColor(data.substring(0, 8)),
+            parseColor(data.substring(8, 16)),
+            parseColor(data.substring(16, 24)),
+            parseColor(data.substring(24, 32)),
+            parseColor(data.substring(32, 40)),
+            parseColor(data.substring(40, 48))
+      );
+   }
+
+   private static Color parseColor(String data) {
+      return new Color(
+            Integer.parseInt(data.substring(2, 4), 16),
+            Integer.parseInt(data.substring(4, 6), 16),
+            Integer.parseInt(data.substring(6, 8), 16),
+            Integer.parseInt(data.substring(0, 2), 16)
+      );
    }
 
    public Color getBackgroundActive() {

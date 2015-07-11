@@ -7,6 +7,7 @@ import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JComboBox;
+import javax.swing.ListCellRenderer;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicComboPopup;
@@ -16,11 +17,11 @@ public class OpenTabsComboPopup extends BasicComboPopup {
    private final int maxWidth;
 
    public OpenTabsComboPopup(Component[] components, Tab activeTab, int maxWidth) {
-      super(new JComboBox(components));
+      super(new JComboBox<>(components));
       this.maxWidth = maxWidth;
 
       comboBox.setMaximumRowCount(Integer.MAX_VALUE);
-      comboBox.setRenderer(new OpenTabsListCellRenderer(maxWidth, activeTab, getInsets()));
+      setComboBoxRenderer(comboBox, new OpenTabsListCellRenderer(maxWidth, activeTab, getInsets()));
       list.addMouseListener(new MouseAdapter() {
          @Override
          public void mouseExited(MouseEvent e) {
@@ -31,6 +32,11 @@ public class OpenTabsComboPopup extends BasicComboPopup {
       scroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
       scroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
       resize();
+   }
+
+   @SuppressWarnings("unchecked")
+   private void setComboBoxRenderer(JComboBox comboBox, ListCellRenderer renderer) {
+      comboBox.setRenderer(renderer);
    }
 
    public void resize() {
